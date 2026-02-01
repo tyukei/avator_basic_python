@@ -7,6 +7,7 @@ const STATE = {
     READY: 'ready',
     USER_SPEAKING: 'user_speaking',
     AVATAR_SPEAKING: 'avatar_speaking',
+    THINKING: 'thinking',
     ERROR: 'error'
 }
 
@@ -16,6 +17,7 @@ const STATUS_LABELS = {
     [STATE.READY]: '話しかけてください',
     [STATE.USER_SPEAKING]: '聞いています...',
     [STATE.AVATAR_SPEAKING]: '応答中...',
+    [STATE.THINKING]: '考え中...',
     [STATE.ERROR]: 'エラーが発生しました'
 }
 
@@ -27,6 +29,9 @@ function App() {
     const [currentUserTranscript, setCurrentUserTranscript] = useState('')
     const [error, setError] = useState(null)
     const [mouthOpen, setMouthOpen] = useState(false)
+
+    // 思考中アニメーション用
+    const [thinkingFrame, setThinkingFrame] = useState(0)
 
     // APIコストトラッキング
     const [tokenStats, setTokenStats] = useState({ inputTokens: 0, outputTokens: 0 })
@@ -52,6 +57,21 @@ function App() {
     const streamRef = useRef(null)
     const playbackQueueRef = useRef([])
     const isPlayingRef = useRef(false)
+
+    // 思考中アニメーションループ
+    useEffect(() => {
+        let intervalId = null
+        if (appState === STATE.THINKING) {
+            intervalId = setInterval(() => {
+                setThinkingFrame(prev => (prev + 1) % 2)
+            }, 250) // 250msごとにフレーム切り替え
+        } else {
+            setThinkingFrame(0)
+        }
+        return () => {
+            if (intervalId) clearInterval(intervalId)
+        }
+    }, [appState])
 
     // WebSocket接続
     const connectWebSocket = useCallback(() => {
@@ -96,7 +116,8 @@ function App() {
                     setAppState(STATE.READY)
                     console.log('Interrupted by user')
                 } else if (data.type === 'text') {
-                    // model_turn.parts[].text は思考過程なので無視（デバッグ用にログのみ）
+                    // model_turn.parts[].text は思考過程なので、思考中状態にする
+                    setAppState(STATE.THINKING)
                     console.log('[Thinking]', data.text)
                 } else if (data.type === 'transcript') {
                     // AI発話開始時にユーザー発話を履歴に保存
@@ -292,11 +313,18 @@ function App() {
         setError(null)
     }
 
+    const getAvatarImage = () => {
+        if (appState === STATE.THINKING) {
+            return `/avatar-thinking-${thinkingFrame + 1}.png`
+        }
+        return mouthOpen ? '/avatar-open.png' : '/avatar-closed.png'
+    }
+
     return (
         <div className="app-container">
             <div className={`avatar-container ${appState === STATE.AVATAR_SPEAKING ? 'speaking' : ''}`}>
                 <img
-                    src={mouthOpen ? '/avatar-open.png' : '/avatar-closed.png'}
+                    src={getAvatarImage()}
                     alt="アバター"
                     className="avatar-image"
                     onError={(e) => {
