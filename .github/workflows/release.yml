@@ -27,14 +27,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          # index.htmlのmetaタグからバージョンを取得
-          CURRENT_VERSION=$(grep -oP '<meta name="version" content="\K[^"]+' frontend/index.html)
+          # pyproject.tomlからバージョンを取得
+          CURRENT_VERSION=$(grep -oP '^version = "\K[^"]+' backend_python/pyproject.toml)
           echo "Current version: $CURRENT_VERSION"
 
           NEW_VERSION=$(python3 -c "v='$CURRENT_VERSION'.split('.'); v[-1]=str(int(v[-1])+1); print('.'.join(v))")
           echo "New version: $NEW_VERSION"
 
-          # index.htmlのバージョンを更新
+          # pyproject.tomlのバージョンを更新
+          sed -i 's/^version = "'$CURRENT_VERSION'"/version = "'$NEW_VERSION'"/' backend_python/pyproject.toml
+          
+          # frontend/package.jsonのバージョンを更新
+          # npm versionコマンドを使用するか、sedで置換 (sedの方が依存がない)
+          sed -i 's/"version": "'$CURRENT_VERSION'"/"version": "'$NEW_VERSION'"/' frontend/package.json
+
+          # frontend/index.htmlのバージョンを更新
           sed -i 's/<meta name="version" content="'$CURRENT_VERSION'"/<meta name="version" content="'$NEW_VERSION'"/' frontend/index.html
           echo "VERSION=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
@@ -46,7 +53,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          git add frontend/index.html
+          git add backend_python/pyproject.toml frontend/package.json frontend/index.html
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
