@@ -28,14 +28,14 @@ jobs:
           set -euo pipefail
 
           # index.htmlのmetaタグからバージョンを取得
-          CURRENT_VERSION=$(grep -oP '<meta name="version" content="\K[^"]+' index.html)
+          CURRENT_VERSION=$(grep -oP '<meta name="version" content="\K[^"]+' frontend/index.html)
           echo "Current version: $CURRENT_VERSION"
 
           NEW_VERSION=$(python3 -c "v='$CURRENT_VERSION'.split('.'); v[-1]=str(int(v[-1])+1); print('.'.join(v))")
           echo "New version: $NEW_VERSION"
 
           # index.htmlのバージョンを更新
-          sed -i 's/<meta name="version" content="'$CURRENT_VERSION'"/<meta name="version" content="'$NEW_VERSION'"/' index.html
+          sed -i 's/<meta name="version" content="'$CURRENT_VERSION'"/<meta name="version" content="'$NEW_VERSION'"/' frontend/index.html
           echo "VERSION=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push changes
@@ -46,7 +46,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          git add index.html
+          git add frontend/index.html
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
